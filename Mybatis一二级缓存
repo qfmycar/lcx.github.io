@@ -1,0 +1,52 @@
+### Mybatis一二级缓存
+
+#### 一、一级缓存
+
+```
+	首先先讲一级缓存。
+	Mybatis一级缓存是默认开启的，作用于同个sqlSession中，在参数和sql相同情况下，我们使用同个sqlSession多次访问同个Mapper方法，只会对数据库请求一次。原因是在第一次执行查询时，结果已经被存到本地缓存中，后续直接从缓存中获取结果集。
+	这里就要对一级缓存抛出两个问题
+```
+
+##### 1、一级缓存的生命周期？
+
+```java
+	1、Mybatis开启一个数据库会话时，会生成一个新的sqlSession对象，sqlSession中有一个新的executor对象，在executor中有一个新的perpetualCache对象，这个对象也就是一级缓存。在会话结束时，这些对象都会被清空
+	2、sqlSession执行 close()方法时，perpetualCache对象会被释放，并且一级缓存不能再使用
+	3、sqlSession执行 clearCache()方法时，perpetualCache对象会被清空，但一级缓存还是可用的
+	4、sqlSession执行 update()、delete()、inset()方法时，perpetualCache对象会被清空，一级缓存仍可用
+```
+
+##### 2、怎么判断这些查询语句是相同的？
+
+```java
+	1、根据传入的statementId
+	2、根据传入的参数
+	3、根据返回的结果集结果范围
+	4、根据最终传入JDBC的sql
+```
+
+#### 二、二级缓存
+
+```java
+	Mybatis二级缓存是应用级的，可以提高数据库查询效率，提高系统性能，它不局限于单个sqlSession，默认关闭
+```
+
+##### 1、开启条件
+
+```java
+开启二级缓存需要注意以下两点：
+	1、需要在映射文件或全局文件进行配置
+	2、POJO必须序列化
+配置方法，以映射文件举例
+<cache eviction ="LRU" flushInterval ="100000" readOnly ="true" Size ="1024" />
+eviction：表示缓存回收策略
+	1.LRU	最近最少使用
+	2.FIFO	先进先出
+	3.SOFT	软引用
+	4.WEAK	弱引用
+
+flushInterval：刷新间隔，毫秒为单位，不配置则按SQL刷新
+Size：引用数目，缓存最多可存储多少对象，过大会内存溢出
+readOnly：只读，默认是false
+```
