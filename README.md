@@ -1,37 +1,449 @@
-## Welcome to GitHub Pages
+## JVM内容整理	@Author：Lin.cx @Date 2019.07.28
 
-You can use the [editor on GitHub](https://github.com/tanteSir/tanteSIr.github.io/edit/master/README.md) to maintain and preview the content for your website in Markdown files.
+### 一、JVM内存模型
 
-Whenever you commit to this repository, GitHub Pages will run [Jekyll](https://jekyllrb.com/) to rebuild the pages in your site, from the content in your Markdown files.
-
-### Markdown
-
-Markdown is a lightweight and easy-to-use syntax for styling your writing. It includes conventions for
-
-```markdown
-Syntax highlighted code block
-
-# Header 1
-## Header 2
-### Header 3
-
-- Bulleted
-- List
-
-1. Numbered
-2. List
-
-**Bold** and _Italic_ and `Code` text
-
-[Link](url) and ![Image](src)
+```
+JVM内存模型内包括 虚拟机栈、本地方法栈、堆、方法区、程序计数器
 ```
 
-For more details see [GitHub Flavored Markdown](https://guides.github.com/features/mastering-markdown/).
+#### 1、什么是程序计数器
 
-### Jekyll Themes
+```
+程序计数器是线程私有的，是占据内存很小的一块区域，用于指向当前线程运行的行号
+```
 
-Your Pages site will use the layout and styles from the Jekyll theme you have selected in your [repository settings](https://github.com/tanteSir/tanteSIr.github.io/settings). The name of this theme is saved in the Jekyll `_config.yml` configuration file.
+#### 2、什么是虚拟机栈
 
-### Support or Contact
+```
+	虚拟机栈与程序计数器一样，也是线程私有的，用于存储定义的变量，引用的对象、调用的函数等。栈描述的就是Java方法执行的内存模型
+	每个方法被执行时都会创建一个栈帧，用于存储局部变量表、操作栈、动态链接、方法出口等信息。每个方法被调用的过程就是栈帧进栈出栈的过程。
+	
+	栈帧是用来存储数据和部分过程结果的数据结构，它在线程的虚拟机栈内大小是由编译期确定的，不受运行期影响
+	
+	一般我们所说的栈就是指 局部变量表部分
+	栈的大小是由编译器决定的，而不是运行期能改变的，当使用的栈大小超出原有的大小，就会报出StackOverFlowError
+	可以动态扩展栈容量，但是当申请的栈容量达不到时，就会报出OverOfMemory
+```
 
-Having trouble with Pages? Check out our [documentation](https://help.github.com/categories/github-pages-basics/) or [contact support](https://github.com/contact) and we’ll help you sort it out.
+#### 3、什么是本地方法栈
+
+```
+	本地方法栈功能与虚拟机栈类似，区别是虚拟机栈是为Java方法服务的，而本地方法栈是为native方法服务的
+```
+
+#### 4、什么是堆
+
+```
+	堆是线程共享的，目的是用来存储对象实例，也常称GC堆
+	对于大多数应用来说，堆是占据内存最大的一块区域。因为堆存放的对象是线程共享的，所以多线程的时候也需要同步机制
+	Java虚拟机规范介绍说，所有实例和数组都要在堆中分配内存。不过随着 JIT编译器和 逃逸分析技术的成熟，这已不那么绝对
+	
+	JIT编译器：将java字节码和需要被解释的的某一指令的程序转换为可直接发送给处理器的指令的程序
+	逃逸技术：绝定某些实例是否被存在堆中，如果开启，那么这些数据将被存储在栈中，并且他们的指针可被全局引用	
+```
+
+#### 5、什么是方法区
+
+```
+	方法区同堆一样，线程共享的内存区域。JDK8中，逻辑上可认为方法区属于堆
+	用于存储已被虚拟机加载的类信息、常量、静态变量
+	在方法区内还有一个运行时常量池，用来存储字面量和符号引用等
+	在jdk1.7之前，常量池也被叫做永久代，在jdk1.7之后，永久代就被删除了，我们可以用java 的interns方法来判断符号引用等存储的位置
+```
+
+### 二、类加载机制
+
+#### 1、什么是类的加载
+
+```java
+	类的加载是指，类的加载器通过类的完全限定名获取class类文件的二进制字节码数据，存储在内存中，通过验证、准备、解析、初始化，在堆中生成一个代码该类的对象，指向方法区内数据的地址
+```
+
+#### 2、类的生命周期
+
+```java
+	生命周期包括：加载、验证、准备、解析、初始化、使用、卸载
+	其中加载：就是类加载器通过类的完全限定名获取类的二进制字节码数据放到内存中
+	
+	验证：目的是为了确保数据规范，保护虚拟机
+		其中有：
+		1.文件格式验证		基于字节流验证
+		2.元数据验证			2.3.4都是基于方法区存储结构验证
+		3.字节码验证
+		4.符号引用验证
+	
+	准备：给变量分配内存，并且赋予默认值
+		如：public static int value = 123;  //分配默认值时 int 4字节 0 ; long 8字节 0 
+		这里准备过程过后，value值为默认值0，初始化后才为123
+		但也有特例，如final修饰的变量，如：
+		public static final int value = 123;
+		这个在准备过程后，value值就为123了
+		
+	解析：在类的常量池中寻找类、接口、字段和方法的符号引用，并将符号引用改为直接引用
+	
+	初始化：将类按顺序进行初始化，这里顺序是  
+		父类静态方法 > 子类静态方法 > 父类构造器 > 父类成员 > 子类构造器 > 子类成员
+```
+
+##### 2.1 类加载需知
+
+```java
+Java程序对类的使用方式分为两种：  1、主动使用				2、被动使用
+	所有的Java虚拟机实现的是：必须在每个类或接口被Java程序“首次主动使用”时才会初始化他们
+	主动使用包括：
+	1.创建类的实例
+	2.访问类或接口的静态内容
+	3.使用反射
+	4.初始化类的子类
+	5.JVM启动时，有被标记的启动类(main)
+	6.JDK1.7提供了动态语言支持，REF_getStaitc、REF_putStatic、REF_invokeStatic助记符句柄对应的类，若没初始化则进行初始化
+	
+加载.class文件的方式
+	1、从本地系统加载
+	2、网络下载.class文件
+	3、zip、jar包中加载
+	4、专用数据库中提取.class文件
+	5、Java源文件动态编译为.class文件
+	
+对于静态字段来说，只有直接定义该字段的类才会被初始化
+平常可以用 +XX:+TraceClassLoading	来追踪类加载信息
+
+```
+
+##### 2.2 类加载时final的注意点
+
+```java
+	在准备阶段，final修饰的静态变量会转变为常量
+	常量会在编译期存入到调用这个常量的方法所在的的常量池中。
+	本质上，调用该类不会直接引用定义的常量的类，而是从对应方法的常量池取，因此不会对常量所处类进行初始化
+例：
+	public class Test{
+        public static void main(String[] args){
+            system.out.println(parent.str);
+        }
+	}
+	
+	class Parent{
+        public static final String str = "Hello World";
+        static{
+            system.out.println("parent");
+        }
+	}
+	//这里输出的结果是 Hello World ，没有parent。因为final在编译器吧常量存到调用该方法的常量池里了，换句话说，编译后即使删除Parent的编译文件，依旧能打印出 Hello World
+
+```
+
+##### 2.3 助记符
+
+```java
+使用指令 javap -c 进行反编译后可以看到助记符信息
+
+ldc：表示将 int、float或String类型的常量从常量池推送到栈顶
+bipush：表示将单字节数据(-128 ~ 127)推到栈顶
+sipush：表示将短整型数据推到栈顶
+iconst_1：表示将int类型的1推送到栈顶(-1~5，7个数都这样，其中-1 用m1表示)
+anewarray：表示创建一个引用类型(类、接口、数组)，推到栈顶
+newarray：表示创建一个原始类型(int等)，推到栈顶
+
+```
+
+##### 2.4 random数据对编译的影响
+
+```java
+	常量的值在编译期间无法确定时，其值不会被放到调用该常量的方法所在的常量池中
+	通过 random获得的UUID，是在运行期获得的
+	这时程序运行，会“主动”使用这个常量所在的类，导致这个类被初始化
+
+```
+
+##### 2.5 数组对编译的影响
+
+```java
+	创建数组不会引起对象的初始化，只是创建一个实例
+	对数组实例来说，其类型是由JVM在运行期动态生成的，其父类型是Object
+	对数组来说，JavaDoc经常讲构造数据的元素为compenent，实际上就是将数组降低一个维度的类型
+例：
+	public class Test5 {
+        public static void main(String[] args){
+            Child5[] child = new Child5[2];
+            System.out.println(child.getClass());
+            System.out.println(child.getClass().getSuperclass());
+        }
+    }
+
+    class Parent5{
+        String str = "parent";
+        static {
+            System.out.println("this is parent");
+        }
+    }
+
+    class Child5 extends Parent5{
+        String str2 = "child";
+        static{
+            System.out.println("this is child");
+        }
+    }
+这里输出结果为 class [Lcom.cx.test.Child5;//一个[表示是一层数组，[[表示二维数组
+		     class java.lang.Object
+
+```
+
+##### 2.6 接口对编译的影响
+
+```
+Java虚拟机初始化一个类的时候，要求它所有父类都完成初始化，但这个规则不适用于接口
+	-初始化一个类的时候，不会先初始化它实现的接口
+	-初始化一个接口的时候，不会初始化它的父接口
+	-如果引用的父接口或实现的接口里的数据，不是编译期时存到常量池而是运行期产生的，则会初始化
+	接口中的常量默认是static final修饰的，所以可以参考final修饰的情况
+
+```
+
+##### 综合测试：
+
+```java
+public class Test{
+    public static void main(String[] args){
+		system.out.println(Singleton.counter1);
+         system.out.println(Singleton.counter2);
+    }
+}
+//命令放在不同位置，得到不一样的接口。准备从头到尾走一次，初始化会再走一次，共两次
+class Singleton{
+1    public static int counter1;
+2    private static Singleton singelton = new Singleton();
+3    private Singleton(){
+        count1++;//准备阶段的重要意义
+        count2++;//准备阶段这里运行完时，counter1 = 1, counter2 = 1
+    }
+4    public static int counter2 = 0;//初始化阶段，0会把1覆盖掉
+}
+//这里的执行顺序为： 准备阶段(1 2 4)  初始化阶段(1 2 3 4)
+
+```
+
+#### 3、类的加载器
+
+```java
+类的加载器包括：
+	1.启动类加载器(根类)		lib\rt.jar
+	2.扩展类加载器			 lib\ext\*.jar
+	3.应用类加载器			 class.path
+	4.用户自定义类加载器		   ClassLoader的子类
+	
+	使用类加载器的好处是：方便用户读取各种格式的类文件，只要它是二进制的都可以。
+	类加载器不需要等到某个类被“首次主动使用”时才加载它，它允许预加载类，如果类有错误，那会在程序首次主动使用这个类时报错
+
+```
+
+#### 4、双亲委派机制
+
+```
+	双亲委派机制是用于类加载时，类加载器收到加载某类的请求，但是他不会单独去加载它，而是把这个请求往上一层转发，转发给他的父类加载器，每一层都是如此。到最后这个请求传到启动类加载器，也就是双亲委派机制的最顶端，由他开始加载。如果父类加载器无法加载，再把这个请求转回给子类加载器，让子类加载器加载。
+	好处是：保障java的类随着它的加载器一起具备了带有优先级的层次关系，使加载出来的类统一。举个例子，java.lang.Object类，它是所有加载器都要加载的，最终由启动类加载器加载，因此Object类在各个类加载器中都是同一个类。如果没有双亲委派机制，那每个加载器都可对Object进行加载，那应用程序将一片混乱
+
+```
+
+### 三、垃圾回收机制
+
+```
+	垃圾回收分为两步，一是筛选对象，二是清理对象。
+
+```
+
+#### 1、算法
+
+##### 1.引用计数法
+
+```
+	一个对象它多一个引用就会计数加1，反正则会减1。这个是吧计数为0的对象标记筛选出来。
+	优点：高效				缺点：不能处理循环引用中的对象
+
+```
+
+##### 2.根搜索算法
+
+```
+	从根节点往下寻找，形成一条链式结构，如果一个对象到根节点没有任何引用链相连，则这个对象没有引用
+
+```
+
+##### 3.标记—清除
+
+```
+	分两步。1、从根节点标记所有被引用的对象；2、把所有未被引用的对象删除
+	优点: 简单高效							缺点：易产生内存碎片，会暂停整个应用
+
+```
+
+##### 4.复制
+
+```
+	使用两块相同大小的内存区域，分别为A和B。当A中内存写满时，将A中存活对象全移到B中并且整理，再清空A区。
+	优点：只处理存活的对象，复制成本小，不会产生内存碎片		缺点：需要两倍的内存来管理对应的区域
+
+```
+
+##### 5.标记—整理
+
+```
+	结合清除和复制算法，在对象被清除的基础上，将所有存活对象移到堆中的一块区域并且进行整理
+    优点：不会产生内存碎片，不需要过多内存来管理		缺点：效率比清除低些
+
+```
+
+##### 6.按对象的生命周期长短进行分代
+
+```
+	将对象分为年轻代、年老代、持久代。不同生命周期的对象使用不同的算法来回收
+
+```
+
+#### 2、分代
+
+```
+	根据对象生命周期的长短，可以将内存分为  年轻代、年老代、持久代
+	年轻代有大量对象死去，所以使用复制算法
+	年老代对象存活时间较长，所以使用“标记-清理” 或 “标记-整理”
+
+```
+
+##### 1.年轻代(新生代)
+
+```java
+	大多数对象会先创建在Eden区域，当Eden区写满时，Eden区中存活的对象会随机复制到某个Survivor区中，当这个Survivor区也被写满时，这个Survivor区存活的对象会被复制到另一个Survivor区。当另一个Survivor区写满时，存活的对象会被复制到年老代中去。
+	这两个Survivor是相同大小不分先后的，所以会存在某个Survivor区同时存在从Eden区复制来的对象和从另一个Survivor复制来的对象。但是，复制到年老代的对象，必须是经过Eden-Survivor-另一个Survivor完整路径的对象。
+
+```
+
+##### 2.年老代(老年代)
+
+```
+	里面存储从年轻代复制来的对象，生命周期较长。当年老代被写满时，会把存活对象复制到持久代中。
+
+```
+
+##### 3.持久代(永久代)
+
+```java
+	存储静态文件，如静态对象、静态方法等。
+	持久代对垃圾回收没有大的影响，但是有些程序会调用会生成一些class文件，比如Hibernate。此时要配置一个较大的持久代空间来存放新增的类。
+	持久代大小可通过 -XX:MaxPermSize = 来设置
+
+```
+
+### 四、GC方式
+
+##### 1、Scavenge GC
+
+```
+	年轻代内Eden或Survivor区被写满时，执行Scavenge GC，清空区域中的对象
+
+```
+
+##### 2、Full GC
+
+```
+	对堆进行遍历清除，一般不推荐使用，一下几种情况会触发此GC方式
+	1.年老代被写满
+	2.持久代被写满
+	3.使用 System.gc()方法
+	4.上次GC执行后，堆(Heap)中的各域分配策略发生变化
+
+```
+
+### 五、垃圾收集器
+
+##### 1、串行收集器
+
+```java
+	使用单线程串行年轻代，串行标记-清扫-缩并。因为是单线程的，所以效率高，但是无法使用多处理器的优点。
+    适用：数据量小(100M左右)；单处理器并对响应时间无要求；多处理器的小数据量处理
+    缺点：只能用于小型应用
+    用： -XX：+UseSerialGC		打开
+
+```
+
+##### 2、并行收集器
+
+```java
+	并行年轻代，串行标记-清扫-缩并。
+	对年轻代进行并行垃圾回收，可以减少垃圾回收时间，一般在多处理器机器上使用
+	用： -XX:+UseParallelGC 		打开
+	
+	在Java SE6.0中，可以对老年代进行垃圾收集
+	如果老年代不用并发收集，而是单线程收集，会影响它的扩展能力
+	用： -XX:+UseParallelOldGC	打开
+	
+	适用：对吞吐量有要求，多CPU，对响应时间无要求的中大型应用（如后台）
+	缺点：响应时间可能较长
+
+```
+
+##### 3、并发收集器
+
+```java
+	并发年轻代，初始标记、并发标记、重新标记、并发清扫、重置
+	1、并发收集器主要减少老年代GC时的暂停时间，它在应用不停止的情况下，用独立的线程回收垃圾。在年老代垃圾回收中，刚开始会有一次暂停，然后执行中期也会有一次暂停，这次暂停比开始时的暂停久些。在这整个过程中，多个线程同时进行垃圾回收
+	2、并发收集器使用处理器换取短暂的停顿时间。在一个N个处理器的机器，并发收集使用K/N个处理器，1<=K<=N
+	3、在只有一个处理器的机器上使用并发收集器，使用incremental mode 模式也可以获得较短的停顿时间
+	4、浮动垃圾(Floating Garbage)：应用运行时也会进行垃圾回收，所以有些垃圾会在垃圾回收完成时产生。这样就造成了浮动垃圾，这些垃圾会在下次GC时被清理，所以并发收集器需要预留20%的空间来存放浮动垃圾
+	5、Concurrent Mode Failure：因为并发收集器在应用运行时收集，所以需要堆有足够的空间供程序使用，否则垃圾收集还没完成，堆就已经满了。这种情况会发送“并发模式失败”，从而暂停应用，进行垃圾回收
+	6、启动并发收集器
+	   -XX：CMSInitiatingOccupancyFraction =       //指定还有多少剩余堆时，进行并发垃圾收集
+		
+    适用：对响应时间要求高，多CPU的中大型应用（如Web服务器）
+
+```
+
+### 六、常见配置举例
+
+```java
+	堆大小由三点限制：1.操作系统的数据模型	2.虚拟内存	3.物理内存
+	32位系统下，一般限制为1.5G~2G
+	64位系统下，对内存无限制
+
+```
+
+##### 1、典型设置
+
+```java
+-XX:+<option>		开启option选项
+-XX:-<option>		关闭option选项
+-XX:<option><value>	 把option选项的值设为value
+
+-Xmx3550m：JVM最大内存3550M		
+-Xms3550m：JVM初始内存3550M，这个值与Xmx相同可避免每次GC后JVM重新分配内存
+-Xmn2g：年轻代内存2G。堆 = 年轻代 + 年老代 + 持久代。持久代一般固定为64m，所以增加年轻代会减少年老代
+-Xss128k：每个线程的堆栈大小为128K。JDK5.0后，每个线程大小为1M，之前为256K。相同物理内存，减少此值会生			 成更多线程，但不会无限生成，一般在3K~5K之间
+-XX:new Ratio = 4：年轻代与年老代的比值，此处为1:4，年轻代占堆的1/5，逻辑上持久代处于方法区中，实质上方					法区也是堆的一部分
+-XX：SurvivorRatio = 4：设置年轻代中Eden区与Survivor区的比值。此处为4，则两个Survivor区与一个Eden区的					   比值为 2:4，所以一个Survivor占年轻代的1/6
+-XX：MaxPermSize = 16m：设持久代大小为16M
+-XX：MaxTenuringThreshold = 0：设垃圾的最大年龄为0，即年轻代对象不见过Survivor，直接进入年老代，对年老							 代比较多的应用，可以提高效率。若将此值设未较大值，可增加对象在年轻代的时							 间，增加被回收的几率
+
+-XX:+UseSerialGC	:使用串行收集器
+
+-XX:+UseParallelGC	:使用并行收集器，收集年轻代
+-XX:+UseParallelOldGC :使用并行收集器，收集老年代
+-XX:MaxGCPauseMillis = 100 :每次垃圾回收最长暂停时间为100毫秒，若无法满足，JVM会自动调整年轻代大小
+-XX:+UseAdaptiveSizePolicy :并行收集器自动选择年轻代大小，和Survivor区的比例，以达到系统规定的最低响应						   时间。此值在并行收集时，最好一直打开
+
+-XX:+UseParNewGC	:设年轻代为并发收集，JDK5.0后JVM会自动设置，无需再设此值
+-XX:+UseConcMarkSweepGC :设年老代为并发收集
+-XX:CMSFullGCsBeforeCompaction = 5 :运行5次GC后，对内存空间进行压缩、整理
+-XX:+UseCMSCompactAtFullCollection :对老年代进行压缩，可能会影响性能，但可消除碎片
+```
+
+##### 2、辅助命令行
+
+```java
+-XX:PrintGC
+-XX:Printetails
+-XX:+PrintGCTimeStamps		可与上面两条组合
+-XX:+PrintGCApplicationConcurrentTime	:打印每次垃圾回收前，程序未中断的执行时间，可与上面组合使用
+	输出形式：	Application time： 0.XXXXXX seconds
+-XX:+PrintGCApplicationStoppedTime		:打印垃圾回收期间，程序暂停的时间，可与上面组合使用
+	输出形式：	Total time for which application threads were stopped : 0.XXXXXXX seconds
+-XX:PrintHeapAtGC					   :打印GC前后的堆栈信息
+```
